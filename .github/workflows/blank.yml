@@ -1,0 +1,51 @@
+name: DAB CI/CD
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Validate (dev)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      - name: Validate bundle (dev)
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_DEV }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_DEV }}
+        run: databricks bundle validate --target dev
+
+  deploy_dev:
+    name: Deploy to Dev
+    needs: validate
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      - name: Deploy bundle (dev)
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_DEV }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_DEV }}
+        run: databricks bundle deploy --target dev
+
+  deploy_prod:
+    name: Deploy to Prod
+    needs: deploy_dev
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      - name: Deploy bundle (prod)
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_PROD }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_PROD }}
+        run: databricks bundle deploy --target prod
